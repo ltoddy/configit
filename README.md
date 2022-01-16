@@ -30,7 +30,7 @@ pub struct AppConfig {
 }
 
 fn main() {
-    let config = AppConfig::load_by("config.toml").expect("couldn't load `config.toml` file");
+    let config = AppConfig::load("config.toml").expect("couldn't load `config.toml` file");
     println!("config: {config:?}"); // config: AppConfig { host: "127.0.0.1", port: 8888 }
 }
 ```

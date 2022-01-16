@@ -12,7 +12,7 @@
 //!     port: u16,
 //! }
 //!
-//! let config = AppConfig::load_by("config.toml").expect("couldn't load `config.toml` file");
+//! let config = AppConfig::load("config.toml").expect("couldn't load `config.toml` file");
 //! println!("config: {config:?}");
 //! ```
 
@@ -31,25 +31,34 @@ compile_error!(
 );
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 #[cfg(feature = "yaml_conf")]
 use serde_yaml::from_str as from_deserialize;
+use thiserror::Error;
 #[cfg(feature = "toml_conf")]
 use toml::from_str as from_deserialize;
 
-use crate::error::Result;
-use crate::kind::Kind;
+pub type Result<T, E = Error> = std::result::Result<T, E>;
 
-pub mod error;
-pub mod kind;
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("{0}")]
+    Io(#[from] std::io::Error),
+
+    #[cfg(feature = "toml_conf")]
+    #[error("{0}")]
+    Toml(#[from] toml::de::Error),
+
+    #[cfg(feature = "yaml_conf")]
+    #[error("{0}")]
+    Yaml(#[from] serde_yaml::Error),
+}
 
 pub trait Loader {
     type Output;
 
-    fn load(app: &'static str) -> Result<Self::Output>;
-
-    fn load_by<P: AsRef<Path>>(filename: P) -> Result<Self::Output>;
+    fn load<P: AsRef<Path>>(filename: P) -> Result<Self::Output>;
 }
 
 impl<T> Loader for T
@@ -58,13 +67,7 @@ where
 {
     type Output = Self;
 
-    fn load(app: &'static str) -> Result<Self> {
-        let mut filename = PathBuf::from(app);
-        filename.set_extension(Kind::default().as_file_extension());
-        Self::load_by(filename)
-    }
-
-    fn load_by<P: AsRef<Path>>(filename: P) -> Result<Self> {
+    fn load<P: AsRef<Path>>(filename: P) -> Result<Self> {
         let content = fs::read_to_string(filename)?;
         let data = from_deserialize(&content)?;
         Ok(data)
