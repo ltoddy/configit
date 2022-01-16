@@ -20,23 +20,25 @@ compile_error!(
 
 use std::fs::File;
 use std::io::{BufReader, Read};
+use std::path::{Path, PathBuf};
 
 #[cfg(feature = "yaml_conf")]
 use serde_yaml::from_str as from_deserialize;
 #[cfg(feature = "toml_conf")]
 use toml::from_str as from_deserialize;
 
-use crate::configuration::Configuration;
 use crate::error::Result;
+use crate::kind::Kind;
 
-pub mod configuration;
 pub mod error;
 pub mod kind;
 
 pub trait Loader {
     type Output;
 
-    fn load() -> Result<Self::Output>;
+    fn load(app: &'static str) -> Result<Self::Output>;
+
+    fn load_by<P: AsRef<Path>>(filename: P) -> Result<Self::Output>;
 }
 
 impl<T> Loader for T
@@ -45,9 +47,14 @@ where
 {
     type Output = Self;
 
-    fn load() -> Result<Self> {
-        let configuration = Configuration::default();
-        let file = File::open(configuration.filename())?;
+    fn load(app: &'static str) -> Result<Self> {
+        let mut filename = PathBuf::from(app);
+        filename.set_extension(Kind::default().as_file_extension());
+        Self::load_by(filename)
+    }
+
+    fn load_by<P: AsRef<Path>>(filename: P) -> Result<Self> {
+        let file = File::open(filename.as_ref())?;
         let mut reader = BufReader::new(file);
         let mut content = String::with_capacity(1024);
         reader.read_to_string(&mut content)?;
