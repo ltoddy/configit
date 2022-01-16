@@ -30,8 +30,7 @@ compile_error!(
     default features for configit in your Cargo.toml"#
 );
 
-use std::fs::File;
-use std::io::{BufReader, Read};
+use std::fs;
 use std::path::{Path, PathBuf};
 
 #[cfg(feature = "yaml_conf")]
@@ -66,10 +65,7 @@ where
     }
 
     fn load_by<P: AsRef<Path>>(filename: P) -> Result<Self> {
-        let file = File::open(filename.as_ref())?;
-        let mut reader = BufReader::new(file);
-        let mut content = String::with_capacity(1024);
-        reader.read_to_string(&mut content)?;
+        let content = fs::read_to_string(filename)?;
         let data = from_deserialize(&content)?;
         Ok(data)
     }
