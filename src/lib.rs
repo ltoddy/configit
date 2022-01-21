@@ -6,7 +6,7 @@
 //! use serde_derive::Deserialize;
 //! use configit::Loader;
 //!
-//! #[derive(Debug, Deserialize)]
+//! #[derive(Debug, Deserialize, Serialize)]
 //! pub struct AppConfig {
 //!     host: String,
 //!     port: u16,
@@ -34,10 +34,10 @@ use std::fs;
 use std::path::Path;
 
 #[cfg(feature = "yaml_conf")]
-use serde_yaml::from_str as from_deserialize;
+use serde_yaml::{from_str as from_deserialize, to_string as to_serialize};
 use thiserror::Error;
 #[cfg(feature = "toml_conf")]
-use toml::from_str as from_deserialize;
+use toml::{from_str as from_deserialize, to_string_pretty as to_serialize};
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -48,7 +48,11 @@ pub enum Error {
 
     #[cfg(feature = "toml_conf")]
     #[error("{0}")]
-    Toml(#[from] toml::de::Error),
+    TomlDeserialize(#[from] toml::de::Error),
+
+    #[cfg(feature = "toml_conf")]
+    #[error("{0}")]
+    TomlSerialize(#[from] toml::ser::Error),
 
     #[cfg(feature = "yaml_conf")]
     #[error("{0}")]
@@ -59,11 +63,15 @@ pub trait Loader {
     type Output;
 
     fn load<P: AsRef<Path>>(filename: P) -> Result<Self::Output>;
+    fn load_from_reader<R: std::io::Read>(reader: &mut R) -> Result<Self::Output>;
+
+    fn store<P: AsRef<Path>>(&self, filename: P) -> Result<()>;
+    fn store_to_writer<W: std::io::Write>(&self, writer: &mut W) -> Result<()>;
 }
 
 impl<T> Loader for T
 where
-    T: serde::de::DeserializeOwned + Sized,
+    T: serde::de::DeserializeOwned + serde::ser::Serialize + Sized,
 {
     type Output = Self;
 
@@ -71,5 +79,24 @@ where
         let content = fs::read_to_string(filename)?;
         let data = from_deserialize(&content)?;
         Ok(data)
+    }
+
+    fn load_from_reader<R: std::io::Read>(reader: &mut R) -> Result<Self::Output> {
+        let mut content = String::new();
+        reader.read_to_string(&mut content)?;
+        let data = from_deserialize(&content)?;
+        Ok(data)
+    }
+
+    fn store<P: AsRef<Path>>(&self, filename: P) -> Result<()> {
+        let content = to_serialize(self)?;
+        fs::write(filename, content)?;
+        Ok(())
+    }
+
+    fn store_to_writer<W: std::io::Write>(&self, writer: &mut W) -> Result<()> {
+        let content = to_serialize(self)?;
+        writer.write_all(content.as_bytes())?;
+        Ok(())
     }
 }

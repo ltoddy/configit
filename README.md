@@ -20,10 +20,10 @@ port = 8888
 **src/main.rs**
 
 ```rust
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use configit::Loader;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct AppConfig {
     pub host: String,
     pub port: u16,
