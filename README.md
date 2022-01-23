@@ -23,7 +23,7 @@ port = 8888
 use serde::{Deserialize, Serialize};
 use configit::Loader;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize)]
 pub struct AppConfig {
     pub host: String,
     pub port: u16,

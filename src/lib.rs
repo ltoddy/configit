@@ -6,7 +6,7 @@
 //! use serde_derive::Deserialize;
 //! use configit::Loader;
 //!
-//! #[derive(Debug, Deserialize, Serialize)]
+//! #[derive(Debug, Deserialize)]
 //! pub struct AppConfig {
 //!     host: String,
 //!     port: u16,
@@ -64,14 +64,16 @@ pub trait Loader {
 
     fn load<P: AsRef<Path>>(filename: P) -> Result<Self::Output>;
     fn load_from_reader<R: std::io::Read>(reader: &mut R) -> Result<Self::Output>;
+}
 
+pub trait Storage {
     fn store<P: AsRef<Path>>(&self, filename: P) -> Result<()>;
     fn store_to_writer<W: std::io::Write>(&self, writer: &mut W) -> Result<()>;
 }
 
 impl<T> Loader for T
 where
-    T: serde::de::DeserializeOwned + serde::ser::Serialize + Sized,
+    T: serde::de::DeserializeOwned + Sized,
 {
     type Output = Self;
 
@@ -87,7 +89,12 @@ where
         let data = from_deserialize(&content)?;
         Ok(data)
     }
+}
 
+impl<T> Storage for T
+where
+    T: serde::ser::Serialize + Sized,
+{
     fn store<P: AsRef<Path>>(&self, filename: P) -> Result<()> {
         let content = to_serialize(self)?;
         fs::write(filename, content)?;
